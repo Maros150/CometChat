@@ -16,6 +16,7 @@
 		document.getElementById("zaloguj").style.display = "none";
 		document.getElementById("zalogowany").style.display = "block";
 	}
+	
 	function newRequest() {
 		var httpRequest;
 		if (window.XMLHttpRequest) { // Mozilla, Safari, ...
@@ -50,7 +51,7 @@
 
 	}
  	function send(arg) {
- 		var url = "http://localhost:8080/TryChatTest/test";
+ 		var url = "http://localhost:8084/TryChatTest/test";
 		if ( typeof request == 'undefined' ) {
 			/* create new request */
 				request =  newRequest() ;
@@ -65,7 +66,7 @@
     			arg = document.getElementById("message").value;
     			document.getElementById("message").value="";
     			document.getElementById("message").focus();
-    			
+    		
     			request.send(arg);
     		}
     		else if (arg.substring(0,7)=="connect") {
@@ -80,6 +81,7 @@
                     if (req.responseText) {
                         document.getElementById("history").value = 
                         	document.getElementById("history").value + req.responseText;
+                        document.getElementById("history").scrollTop = document.getElementById("history").scrollHeight
                         send('connect');
                     }
                 }
@@ -94,6 +96,7 @@
 </HEAD>
 <body onload="send('connect')">
 <H1 ALIGN="CENTER">Sample HTTP Chat</H1>
+ 
     CHAT<br>
     <textarea rows="10" cols="60" id="history" readonly="readonly" style="resize: none;"></textarea><br>
      <textarea id="message"></textarea>
@@ -102,10 +105,19 @@
 	 <P>
 	 <BR>
 	 <DIV id="zaloguj">
-	 Zaloguj siÄ
+	 Zaloguj sie
 	 <INPUT TYPE="TEXT" id="LOGIN">
+	 <INPUT TYPE="PASSWORD" id="PASSWD">
 	 <INPUT TYPE="SUBMIT" VALUE="Zaloguj" onclick="zaloguj()">
 	 </DIV>
+	 <div id="zalogowany" style="display: none;">
+	 Prywatne wiadomosci: <br>
+	 <textarea rows="10" cols="60" id="history" readonly="readonly" style="resize: none;"></textarea><br>
+	 <textarea id="Pmessage"></textarea><br>
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij Znajomym" onclick="send('send')">
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij Kolegom" onclick="send('send')">
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij PrzyjacioĹ‚om" onclick="send('send')">
+	 </div>
 </body> 
 
 </HTML>
