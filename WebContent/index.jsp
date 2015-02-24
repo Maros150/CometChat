@@ -12,7 +12,7 @@
 	function zaloguj()
 	{
 		logged = true;
-		login = document.getElementById("LOGIN").value;
+		login = document.getElementById("LOGIN").value; //w loginie będzie nazwa użytkownika
 		document.getElementById("zaloguj").style.display = "none";
 		document.getElementById("zalogowany").style.display = "block";
 	}
@@ -50,8 +50,49 @@
 		}
 
 	}
+	
+	function send2(g)
+	{
+		var url = "http://localhost:8084/MessageSender/test";
+		if ( typeof request == 'undefined' ) {
+			/* create new request */
+				request =  newRequest() ;
+			}
+            request.open("post", url, true);
+            request.setRequestHeader("Content-Type","application/x-javascript;");
+            get(request);
+            
+            arg = "#Message: \""+document.getElementById("message2").value +"\",";
+			arg = arg + "#Nadawca: \""+login +"\","; //nick odbiorcy
+			arg = arg + "#Odbiorca: \""+g +"\",";    //nr grupy
+			document.getElementById("message2").value="";
+			document.getElementById("message2").focus();
+			request.send(arg);
+          /*  
+		arg = document.getElementById("message2").value;
+		arg="user2_user3_user4_user1_msg";
+		
+		tab = arg.split("_");
+        wynik ="";
+        from=tab[tab.length-2];
+        msg=tab[tab.length-1];
+        
+        check=0;
+        for (i = 0; i < tab.length-1; i++) { 
+            if(tab[i] == login)
+            	check=1;
+        }   
+		if(check==1){
+			document.getElementById("message2").value="";
+			document.getElementById("message2").focus();
+			document.getElementById("history").value = 
+	        document.getElementById("history").value + "["+from+"]" +msg + "\\\n";
+	        document.getElementById("history").scrollTop = document.getElementById("history").scrollHeight
+        }*/
+	}
+	
  	function send(arg) {
- 		var url = "http://localhost:8084/TryChatTest/test";
+ 		var url = "http://localhost:8084/MessageSender/test";
 		if ( typeof request == 'undefined' ) {
 			/* create new request */
 				request =  newRequest() ;
@@ -63,10 +104,12 @@
             get(request);
             
             if ( arg.substring(0,4)=="send") {
-    			arg = document.getElementById("message").value;
+    			arg = "#Message: \""+document.getElementById("message").value +"\",";
+    			arg = arg + "#Nadawca: \""+"mla" +"\",";
+    			arg = arg + "#Odbiorca: \""+"all" +"\",";
     			document.getElementById("message").value="";
     			document.getElementById("message").focus();
-    		
+    			
     			request.send(arg);
     		}
     		else if (arg.substring(0,7)=="connect") {
@@ -81,7 +124,6 @@
                     if (req.responseText) {
                         document.getElementById("history").value = 
                         	document.getElementById("history").value + req.responseText;
-                        document.getElementById("history").scrollTop = document.getElementById("history").scrollHeight
                         send('connect');
                     }
                 }
@@ -96,7 +138,6 @@
 </HEAD>
 <body onload="send('connect')">
 <H1 ALIGN="CENTER">Sample HTTP Chat</H1>
- 
     CHAT<br>
     <textarea rows="10" cols="60" id="history" readonly="readonly" style="resize: none;"></textarea><br>
      <textarea id="message"></textarea>
@@ -105,18 +146,16 @@
 	 <P>
 	 <BR>
 	 <DIV id="zaloguj">
-	 Zaloguj sie
+	Zaloguj sie
 	 <INPUT TYPE="TEXT" id="LOGIN">
-	 <INPUT TYPE="PASSWORD" id="PASSWD">
 	 <INPUT TYPE="SUBMIT" VALUE="Zaloguj" onclick="zaloguj()">
 	 </DIV>
-	 <div id="zalogowany" style="display: none;">
+	  <div id="zalogowany" style="display: none;">
 	 Prywatne wiadomosci: <br>
-	 <textarea rows="10" cols="60" id="history" readonly="readonly" style="resize: none;"></textarea><br>
-	 <textarea id="Pmessage"></textarea><br>
-     <INPUT TYPE="SUBMIT" VALUE="Wyslij Znajomym" onclick="send('send')">
-     <INPUT TYPE="SUBMIT" VALUE="Wyslij Kolegom" onclick="send('send')">
-     <INPUT TYPE="SUBMIT" VALUE="Wyslij PrzyjacioĹ‚om" onclick="send('send')">
+	 <textarea id="message2"></textarea><br>
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij Znajomym" onclick="send2('1')">
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij Kolegom" onclick="send2('2')">
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij Przyjaciołom" onclick="send2('3')">
 	 </div>
 </body> 
 
