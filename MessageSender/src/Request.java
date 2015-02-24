@@ -34,10 +34,10 @@ public class Request {
 		return request;
 	}
 	public String getNadawca(String reqMessage){
-/*		int start = reqMessage.indexOf(NadawcaAtr);
+		int start = reqMessage.indexOf(NadawcaAtr);
 		String temp = reqMessage.substring(start);
 		int stop = temp.indexOf("\",");
-		return reqMessage.substring(start+NadawcaAtr.length()+1,start + stop);*/
+		//return reqMessage.substring(start+NadawcaAtr.length()+1,start + stop);
 		return getSessionId().substring(0, 5);
 	}
 	public String getAdresat(String reqMessage){

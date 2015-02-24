@@ -47,6 +47,7 @@ public class HelloW extends HttpServlet implements CometProcessor{
 	public void event(final CometEvent event) throws IOException, ServletException {
 		Request request = new Request(event.getHttpServletRequest());
         HttpServletResponse response = event.getHttpServletResponse();
+        
         if (event.getEventType() == CometEvent.EventType.BEGIN) {
         	System.out.println("BEGIN");
             request.setAttribute("org.apache.tomcat.comet.timeout", TIMEOUT);
@@ -93,8 +94,8 @@ public class HelloW extends HttpServlet implements CometProcessor{
 	
 	public class MessageSender implements Runnable {
 
-		protected boolean running = true;
-		protected ArrayList<Message> messages = new ArrayList<Message>();
+		private boolean running = true;
+		private ArrayList<Message> messages = new ArrayList<Message>();
 
 		public MessageSender() {
 		}
