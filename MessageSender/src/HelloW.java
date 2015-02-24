@@ -12,6 +12,102 @@ import org.apache.catalina.comet.CometEvent;
 import org.apache.catalina.comet.CometProcessor;
 
 
+//-------------------------------------------------kompozyt-----------------------------------------------------------\\
+abstract class Hierarchy {
+	public abstract void SendMessege();
+	public abstract void AddFriend(Hierarchy a, int b);
+	public abstract int Minimum();
+	public abstract void Read();
+}
+
+class Friend extends Hierarchy{
+	String message;
+	int from;
+	int to;
+	public Friend(String message2, int from2, int to2){
+		message=message2;
+		from = from2;
+		to=to2;
+	}
+	@Override
+	public void SendMessege() {
+		try{
+			Class.forName("com.mysql.jdbc.Driver");
+			Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/users","admin","admin");
+			String query = "select max(idWiadomosci)+1 from wiadomosci";
+			java.sql.PreparedStatement statement = con.prepareStatement(query);
+			ResultSet  result = statement.executeQuery(); 
+			result.next();
+			int id = result.getInt(1);
+			
+			query = "insert into wiadomosci(idWiadomosci,idNadawcy,tresc,idOdbiorcy) values (?, ?, ?, ?)";
+			statement = con.prepareStatement(query);
+			statement.setInt(1, id);
+			statement.setInt(2, from);
+			statement.setString(3, message);
+			statement.setInt(4, to);
+			statement.executeUpdate(); 
+			}
+		catch(Exception e) {System.out.println(e.getMessage());}
+		}
+	@Override
+	public void AddFriend(Hierarchy a,int b) {}
+	@Override
+	public int Minimum() {
+		return 3;
+	}
+	@Override
+	public void Read() {
+		System.out.println("wiadomosc: " + message + " id grupy: " + to);
+	}	
+}
+
+class Group extends Hierarchy{
+	int Id;
+	public Group(int id){
+		Id=id;
+		if(id-1>0)
+			users.add(new Group(id-1));
+	}
+	public ArrayList<Hierarchy> users = new ArrayList<Hierarchy>();
+	@Override
+	public void SendMessege() {
+		for(Iterator<Hierarchy> i = users.iterator(); i.hasNext(); ) {
+			i.next().SendMessege();
+		}
+	}
+	
+	public void AddFriend(Hierarchy f,int Gid){
+		if(Gid == Id)
+			users.add(f);
+		else
+			for(Iterator<Hierarchy> i = users.iterator(); i.hasNext(); ) {
+				i.next().AddFriend(f,Gid);
+			}
+	}
+	public int Minimum() { //zwraca Id najniższego poziomu
+		int min=3;
+		if(users.size()==0)
+			return Id;
+		else{
+			for(Iterator<Hierarchy> i = users.iterator(); i.hasNext(); ) {
+				if(i.next().Minimum()<min)
+					min=i.next().Minimum();
+			}
+			return min;
+		}
+	}
+
+	@Override
+	public void Read() {
+		for(Iterator<Hierarchy> i = users.iterator(); i.hasNext(); ) {
+				i.next().Read();
+		}
+		
+	}
+	
+}
+//-------------------------------------------------kompozyt-----------------------------------------------------------\\
 
 
 public class HelloW extends HttpServlet implements CometProcessor{
@@ -115,6 +211,30 @@ public class HelloW extends HttpServlet implements CometProcessor{
 			}
 		}
 
+		//to będzie używało kompozytu
+		public  void GenerateTree(int idUser, int idGroup,String message){
+			root = new Group(3);
+			try{
+			for(int grupa=3;grupa>=idGroup;grupa--){ //dla wszystkich grup o podanym id i ważniejszych
+				//pobieramy wszytskich użytkowników z danej grupy
+					Class.forName("com.mysql.jdbc.Driver");
+					Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/users","admin","admin");
+					String query = "select idZnajomego from znajomi where MojeId=? and idGrupy = ?";
+					java.sql.PreparedStatement statement = con.prepareStatement(query);
+					statement.setInt(1, idUser);
+					statement.setInt(2, grupa);
+					ResultSet  result = statement.executeQuery();
+					//wstawiamy do drzewa --- w drzewie będą id znajomych z danej grupy
+					while(result.next())
+					{
+						root.AddFriend(new Friend(message,idUser,result.getInt(1)),grupa);
+					}					
+				}
+			root.SendMessege();
+			}
+			catch(Exception e) {System.out.println(e.getMessage());}
+		}
+		
 		public void run() {
 
 			while (running) {
