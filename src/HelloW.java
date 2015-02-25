@@ -7,6 +7,8 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import javax.activation.DataSource;
+import javax.naming.InitialContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -15,15 +17,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.catalina.comet.CometEvent;
 import org.apache.catalina.comet.CometProcessor;
 
-import com.sun.xml.internal.bind.v2.schemagen.xmlschema.List;
-
-
-
 //-------------------------------------------------kompozyt-----------------------------------------------------------\\
 abstract class Hierarchy {
 	public abstract void SendMessege();
 	public abstract void AddFriend(Hierarchy a, int b);
 	public abstract int Minimum();
+	public abstract void Read();
 }
 
 class Friend extends Hierarchy{
@@ -40,12 +39,19 @@ class Friend extends Hierarchy{
 		try{
 			Class.forName("com.mysql.jdbc.Driver");
 			Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/users","admin","admin");
-			String query = "insert into wiadomosci(idWiadomosci,idNadawcy,tresc,idOdbiorcy)" + " values ((select max(idWiadomosci)+1 from wiadomosci), ?, ?, ?)";
+			String query = "select max(idWiadomosci)+1 from wiadomosci";
 			java.sql.PreparedStatement statement = con.prepareStatement(query);
+			ResultSet  result = statement.executeQuery(); 
+			result.next();
+			int id = result.getInt(1);
+			
+			query = "insert into wiadomosci(idWiadomosci,idNadawcy,tresc,idOdbiorcy) values (?, ?, ?, ?)";
+			statement = con.prepareStatement(query);
+			statement.setInt(1, id);
 			statement.setInt(2, from);
-			statement.setInt(3, to);
-			statement.setString(4, message);
-			statement.executeQuery(); 
+			statement.setString(3, message);
+			statement.setInt(4, to);
+			statement.executeUpdate(); 
 			}
 		catch(Exception e) {System.out.println(e.getMessage());}
 		}
@@ -54,6 +60,10 @@ class Friend extends Hierarchy{
 	@Override
 	public int Minimum() {
 		return 3;
+	}
+	@Override
+	public void Read() {
+		System.out.println("wiadomosc: " + message + " id grupy: " + to);
 	}	
 }
 
@@ -61,6 +71,8 @@ class Group extends Hierarchy{
 	int Id;
 	public Group(int id){
 		Id=id;
+		if(id-1>0)
+			{users.add(new Group(id-1));}
 	}
 	public ArrayList<Hierarchy> users = new ArrayList<Hierarchy>();
 	@Override
@@ -91,14 +103,26 @@ class Group extends Hierarchy{
 			}
 			return min;
 		}
-	}	
+	}
+
+	@Override
+	public void Read() {
+		for(Iterator<Hierarchy> i = users.iterator(); i.hasNext(); ) {
+				i.next().Read();
+		}
+		
+	}
+	
 }
 //-------------------------------------------------kompozyt-----------------------------------------------------------\\
 
 
 public class HelloW extends HttpServlet implements CometProcessor{
 
-
+	
+	/**
+	 * 
+	 */
 	private static final long serialVersionUID = -2040902789691199567L;
 	
 	private static final Integer TIMEOUT = 60 * 1000;
@@ -125,26 +149,27 @@ public class HelloW extends HttpServlet implements CometProcessor{
 	
 	@Override
 	public void event(final CometEvent event) throws IOException, ServletException {
-        HttpServletRequest request = event.getHttpServletRequest();
+		Request request = new Request(event.getHttpServletRequest());
         HttpServletResponse response = event.getHttpServletResponse();
+        
         if (event.getEventType() == CometEvent.EventType.BEGIN) {
         	System.out.println("BEGIN");
             request.setAttribute("org.apache.tomcat.comet.timeout", TIMEOUT);
             
-            log("Begin for session: " + request.getSession(true).getId());
+            log("Begin for session: " + request.getSessionId());
 			synchronized(connections) {
 				connections.add(response);
 			}
         } else if (event.getEventType() == CometEvent.EventType.ERROR) {
         	System.out.println("ERROR");
-        	log("Error for session: " + request.getSession(true).getId());
+        	log("Error for session: " + request.getSessionId());
 			synchronized(connections) {
 				connections.remove(response);
 			}
             event.close();
         } else if (event.getEventType() == CometEvent.EventType.END) {
         	System.out.println("END");
-        	log("End for session: " + request.getSession(true).getId());
+        	log("End for session: " + request.getSessionId());
 			synchronized(connections) {
 				connections.remove(response);
 			}
@@ -158,24 +183,25 @@ public class HelloW extends HttpServlet implements CometProcessor{
 				int n = is.read(buf); //can throw an IOException
 				if (n > 0) {
 					message.append(new String(buf, 0, n));
-					log("Read " + n + " bytes: " + new String(buf, 0, n) 
-					+ " for session: " + request.getSession(true).getId());
+					log("Read " + n + " bytes: " + new String(buf, 0, n) );
+					//+ " for session: " + request.getSessionId());
 				} else if (n < 0) {
-					error(event, request, response);
+					error(event, request.getRequest(), response);
 					return;
 				}
 			} while (is.available() > 0);
-			messageSender.send(request.getSession(true).getId().substring(0, 4), message.toString());       	    
+			messageSender.send(messageSender.PrivateMessage(request.getNadawca(message.toString()), request.getAdresat(message.toString()), request.getMessage(message.toString())));
+			//messageSender.send(new Message(request.getNadawca(message.toString()), request.getAdresat(message.toString()), request.getMessage(message.toString())));       	    
         }
 
     }
 	
 	
 	public class MessageSender implements Runnable {
+		private Zegar zegar = Zegar.getInstance();
+		private boolean running = true;
+		private ArrayList<Message> messages = new ArrayList<Message>();
 
-		protected boolean running = true;
-		protected ArrayList<String> messages = new ArrayList<String>();
-		protected ArrayList<String> Privatemessages = new ArrayList<String>();
 		public MessageSender() {
 		}
 
@@ -187,38 +213,53 @@ public class HelloW extends HttpServlet implements CometProcessor{
 		 * Add message for sending.
 		 */
 		
-		public void send(String user, String message) {
+		public void send(Message wiadomosc) {
 			synchronized (messages) {
-				messages.add("[" + user + "]: " + message);
+				messages.add(wiadomosc);
 				messages.notify();
 			}
 		}
-		
+
 		//to będzie używało kompozytu
-			public void PrivateMessage(int idUser, int idGroup,String message){
-				Group root = new Group(3);
-				try{
-				for(int grupa=3;grupa>=idGroup;grupa--){ //dla wszystkich grup o podanym id i ważniejszych
-					//pobieramy wszytskich użytkowników z danej grupy
-						Class.forName("com.mysql.jdbc.Driver");
-						Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/users","admin","admin");
-						String query = "select idZnajomego from znajomi where MojeId=? and idGrupy = ?";
-						java.sql.PreparedStatement statement = con.prepareStatement(query);
-						statement.setInt(1, idUser);
-						statement.setInt(2, grupa);
-						ResultSet  result = statement.executeQuery();
-						//wstawiamy do drzewa
-						while(result.next())
-						{
-							root.AddFriend(new Friend(message,idUser,result.getInt(1)),grupa);
-						}					
+				public Message PrivateMessage(String userName, String idG,String message){
+					if(idG.equals("all")){
+						return new Message(userName, idG, message);
+					}
+					else {
+						
+						
+						int idGroup = Integer.valueOf(idG.substring(0,1));
+						Group root = new Group(3);
+						String lista = new String(""); //lista wszystkich znajomych którym wyświetli się wiadomość
+						try{
+						for(int grupa=3;grupa>=idGroup;grupa--){ //dla wszystkich grup o podanym id i ważniejszych
+							//pobieramy wszytskich użytkowników z danej grupy				
+								Class.forName("com.mysql.jdbc.Driver");
+								Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/users","admin","admin");
+								System.out.println(grupa + " grupa");
+								String query = "select idZnajomego,(select id from users where User = ?),User from znajomi join users on id=idZnajomego where MojeId=(select id from users where User = ?) and idGrupy = ?";
+								java.sql.PreparedStatement statement = con.prepareStatement(query);
+								statement.setString(1, userName);
+								statement.setString(2, userName);
+								statement.setInt(3, grupa);
+								ResultSet result = statement.executeQuery();
+								//wstawiamy do drzewa
+								while(result.next())
+								{
+									lista = lista+ result.getString(3)+"_";
+									
+									root.AddFriend(new Friend(message,result.getInt(2),result.getInt(1)),grupa);
+								}
+							}
+						}
+						catch(Exception e) {System.out.println(e.getMessage() + " ERROR");}
+						root.SendMessege(); //zapisuje nową wiadomość w bazie
+						root.Read();
+						//System.out.println(lista);
+						return new Message(userName,lista, message);
 					}
 				}
-				catch(Exception e) {System.out.println(e.getMessage());}
-			}
 		
-
-
 		public void run() {
 
 			while (running) {
@@ -234,17 +275,28 @@ public class HelloW extends HttpServlet implements CometProcessor{
 				}
 
 				synchronized (connections) {
-					String[] pendingMessages = null;
+					String pendingMessages = "";
 					synchronized (messages) {
-						pendingMessages = messages.toArray(new String[0]);
+						for (int j = 0; j < messages.size(); j++) {
+							if(messages.get(j).adresat.equals("all")){
+								pendingMessages += "["+messages.get(j).nadawca +"]: "
+										+messages.get(j).wiadomosc +"["+zegar.getTime()+"]"+"\n";
+							}
+							else{
+								pendingMessages += "[PRYWATNA] ["+messages.get(j).nadawca +"]: "
+										+messages.get(j).wiadomosc +"["+zegar.getTime()+"]"+"\n_" + messages.get(j).adresat.substring(0,messages.get(j).adresat.length()-1) + "_" + messages.get(j).nadawca;
+							}
+							
+							
+						}
 						messages.clear();
 					}
 					// Send any pending message on all the open connections
 					for (int i = 0; i < connections.size(); i++) {
 						try {
 							PrintWriter writer = connections.get(i).getWriter();
-							for (int j = 0; j < pendingMessages.length; j++) {
-								writer.println(pendingMessages[j]);
+							for (int j = 0; j < pendingMessages.length(); j++) {
+								writer.print(pendingMessages.charAt(j));
 							}
 							writer.flush();
 							writer.close();	/* the response will not be sent until the writer is closed */
@@ -264,5 +316,5 @@ public class HelloW extends HttpServlet implements CometProcessor{
 		System.out.printf("Error: %s, %s, %s\n", event.toString(), request.toString(), response.toString());
 
 	}
-}
 
+}
