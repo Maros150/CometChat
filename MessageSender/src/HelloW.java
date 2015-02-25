@@ -93,7 +93,8 @@ public class HelloW extends HttpServlet implements CometProcessor{
 	
 	
 	public class MessageSender implements Runnable {
-
+		
+		private Zegar zegar = Zegar.getInstance();
 		private boolean running = true;
 		private ArrayList<Message> messages = new ArrayList<Message>();
 
@@ -136,7 +137,7 @@ public class HelloW extends HttpServlet implements CometProcessor{
 					synchronized (messages) {
 						for (int j = 0; j < messages.size(); j++) {
 							pendingMessages += "["+messages.get(j).nadawca +"]: "
-											+messages.get(j).wiadomosc +"\n";
+											+messages.get(j).wiadomosc +"["+zegar.getTime()+"]"+"\n";
 						}
 						messages.clear();
 					}
