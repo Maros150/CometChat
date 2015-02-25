@@ -12,11 +12,10 @@
 	function zaloguj()
 	{
 		logged = true;
-		login = document.getElementById("LOGIN").value; //w loginie będzie nazwa użytkownika
+		login = document.getElementById("LOGIN").value;
 		document.getElementById("zaloguj").style.display = "none";
 		document.getElementById("zalogowany").style.display = "block";
 	}
-	
 	function newRequest() {
 		var httpRequest;
 		if (window.XMLHttpRequest) { // Mozilla, Safari, ...
@@ -48,51 +47,9 @@
 		else {
 			return httpRequest ;
 		}
-
 	}
-	
-	function send2(g)
-	{
-		var url = "http://localhost:8084/MessageSender/test";
-		if ( typeof request == 'undefined' ) {
-			/* create new request */
-				request =  newRequest() ;
-			}
-            request.open("post", url, true);
-            request.setRequestHeader("Content-Type","application/x-javascript;");
-            get(request);
-            
-            arg = "#Message: \""+document.getElementById("message2").value +"\",";
-			arg = arg + "#Nadawca: \""+login +"\","; //nick odbiorcy
-			arg = arg + "#Odbiorca: \""+g +"\",";    //nr grupy
-			document.getElementById("message2").value="";
-			document.getElementById("message2").focus();
-			request.send(arg);
-          /*  
-		arg = document.getElementById("message2").value;
-		arg="user2_user3_user4_user1_msg";
-		
-		tab = arg.split("_");
-        wynik ="";
-        from=tab[tab.length-2];
-        msg=tab[tab.length-1];
-        
-        check=0;
-        for (i = 0; i < tab.length-1; i++) { 
-            if(tab[i] == login)
-            	check=1;
-        }   
-		if(check==1){
-			document.getElementById("message2").value="";
-			document.getElementById("message2").focus();
-			document.getElementById("history").value = 
-	        document.getElementById("history").value + "["+from+"]" +msg + "\\\n";
-	        document.getElementById("history").scrollTop = document.getElementById("history").scrollHeight
-        }*/
-	}
-	
- 	function send(arg) {
- 		var url = "http://localhost:8084/MessageSender/test";
+ 	function send(arg,arg2) {
+ 		var url = "http://localhost:8084/CometChatTest/test";
 		if ( typeof request == 'undefined' ) {
 			/* create new request */
 				request =  newRequest() ;
@@ -104,12 +61,22 @@
             get(request);
             
             if ( arg.substring(0,4)=="send") {
-    			arg = "#Message: \""+document.getElementById("message").value +"\",";
-    			arg = arg + "#Nadawca: \""+"mla" +"\",";
-    			arg = arg + "#Odbiorca: \""+"all" +"\",";
-    			document.getElementById("message").value="";
-    			document.getElementById("message").focus();
-    			
+            	var arg;
+            	if ( arg2==2) {
+	            	group = document.getElementById("lista").selectedIndex+1;
+	            	arg = "#Message: \""+document.getElementById("message2").value +"\",";
+	    			arg = arg + "#Nadawca: \""+ login +"\",";
+	    			arg = arg + "#Odbiorca: \""+ group.toString() +"\",";
+	    			document.getElementById("message2").value="";
+	    			document.getElementById("message2").focus();
+            	}
+            	else{
+            		arg = "#Message: \""+document.getElementById("message").value +"\",";
+        			arg = arg + "#Nadawca: \""+ "mla" +"\",";
+        			arg = arg + "#Odbiorca: \""+ "all" +"\",";
+        			document.getElementById("message").value="";
+        			document.getElementById("message").focus();
+            	}
     			request.send(arg);
     		}
     		else if (arg.substring(0,7)=="connect") {
@@ -122,8 +89,21 @@
             if (req.readyState == 4) {
                 if (req.status == 200){
                     if (req.responseText) {
-                        document.getElementById("history").value = 
-                        	document.getElementById("history").value + req.responseText;
+                        if(req.responseText.substring(0,10)=="[PRYWATNA]"){
+                        	tab = req.responseText.split("_");
+                        	var check=0;
+                        	for (i = 1; i < tab.length; i++) { 
+                                if(tab[i] == login)
+                                	check=1;}
+                        	if(check ==1){
+	                        	document.getElementById("history").value = 
+	                            	document.getElementById("history").value + tab[0];
+	                        	}
+                        }
+                        else {
+                        	document.getElementById("history").value = 
+                            	document.getElementById("history").value + req.responseText;
+                        }
                         send('connect');
                     }
                 }
@@ -141,7 +121,7 @@
     CHAT<br>
     <textarea rows="10" cols="60" id="history" readonly="readonly" style="resize: none;"></textarea><br>
      <textarea id="message"></textarea>
-     <INPUT TYPE="SUBMIT" VALUE="Wyslij" onclick="send('send')">
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij" onclick="send('send',1)">
 	 <BR>
 	 <P>
 	 <BR>
@@ -153,9 +133,12 @@
 	  <div id="zalogowany" style="display: none;">
 	 Prywatne wiadomosci: <br>
 	 <textarea id="message2"></textarea><br>
-     <INPUT TYPE="SUBMIT" VALUE="Wyslij Znajomym" onclick="send2('1')">
-     <INPUT TYPE="SUBMIT" VALUE="Wyslij Kolegom" onclick="send2('2')">
-     <INPUT TYPE="SUBMIT" VALUE="Wyslij Przyjaciołom" onclick="send2('3')">
+     <INPUT TYPE="SUBMIT" VALUE="Wyslij" onclick="send('send',2)">
+     <select id="lista" name="nazwa">
+		<option>Wyslij Znajomym</option>
+		<option>Wyslij Kolegom</option>
+		<option>Wyslij Przyjaciolom</option>
+	</select>
 	 </div>
 </body> 
 
